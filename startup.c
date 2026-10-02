@@ -9,6 +9,8 @@ extern void vPortSVCHandler(void);
 extern void xPortPendSVHandler(void);
 extern void xPortSysTickHandler(void);
 
+extern void UART0_IRQHandler(void);
+
 void Reset_Handler(void);
 void Default_Handler(void);
 void HardFault_Handler(void);
@@ -30,6 +32,12 @@ void (* const g_vectors[])(void) =
     xPortPendSVHandler,         /* 14: PendSV  -> FreeRTOS   */
     xPortSysTickHandler,        /* 15: SysTick -> FreeRTOS   */
     /* 16+: peripheral IRQs (GPIO, UART0, ...) - add here when needed */
+    Default_Handler,            /*  16: NMI                   */
+    Default_Handler,            /*  17: IRQ1                   */
+    Default_Handler,            /*  18: IRQ2                   */
+    Default_Handler,            /*  19: IRQ3                   */
+    Default_Handler,            /*  20: IRQ4                   */
+    UART0_IRQHandler,		/*  21: IRQ5 UART0 		     */	
 };
 
 void Reset_Handler(void)

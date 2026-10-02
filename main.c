@@ -11,8 +11,10 @@
 #include "semphr.h"
 #include "uart.h"
 
+#define RX_LINE_MAX 64
 static QueueHandle_t     xQueue;
 static SemaphoreHandle_t xUartMutex;
+QueueHandle_t xUartRxQueue;
 
 static void print_line(const char *prefix, unsigned int value)
 {
@@ -33,7 +35,7 @@ static void vSenderTask(void *pv)
     for (;;) {
         xQueueSend(xQueue, &count, portMAX_DELAY);
         count++;
-        vTaskDelay(pdMS_TO_TICKS(500));
+        vTaskDelay(pdMS_TO_TICKS(5000));
 	print_line("Sender sent: ", count);
     }
 }
@@ -54,8 +56,62 @@ static void vHeartbeatTask(void *pv)
     TickType_t last = xTaskGetTickCount();
     unsigned int beats = 0;
     for (;;) {
-        vTaskDelayUntil(&last, pdMS_TO_TICKS(2000));
+        vTaskDelayUntil(&last, pdMS_TO_TICKS(10000));
         print_line("Heartbeat #", ++beats);
+    }
+}
+
+//static void vUartRxTask(void *pv)
+//{
+//	(void)pv;
+//	char c;
+//	for(;;){
+//		xQueueReceive(xUartRxQueue, &c, portMAX_DELAY);
+//		xSemaphoreTake(xUartMutex, portMAX_DELAY);
+//		uart_puts("RX task got '");
+//		uart_putc(c);
+//		uart_puts("'\n");
+//		xSemaphoreGive(xUartMutex);
+//	}
+//}
+
+/* Step 4: line editor. Blocks on the RX queue (0% CPU while waiting),
+ * echoes each character, handles backspace, and prints the whole line
+ * when Enter is pressed. */
+static void vUartRxTask(void *pv)
+{
+    (void)pv;
+    char c;
+    char line[RX_LINE_MAX];
+    unsigned int len = 0;
+
+    xSemaphoreTake(xUartMutex, portMAX_DELAY);
+    uart_puts("> ");
+    xSemaphoreGive(xUartMutex);
+
+    for (;;) {
+        xQueueReceive(xUartRxQueue, &c, portMAX_DELAY);
+
+        xSemaphoreTake(xUartMutex, portMAX_DELAY);
+        if (c == '\r' || c == '\n') {                        /* Enter */
+            line[len] = '\0';
+            uart_puts("\nYou typed (");
+            uart_putu(len);
+            uart_puts(" chars): ");
+            uart_puts(line);
+            uart_puts("\n> ");
+            len = 0;
+        } else if (c == '\b' || c == 0x7F) {                 /* Backspace */
+            if (len > 0) {
+                len--;
+                uart_puts("\b \b");                          /* erase on screen */
+            }
+        } else if (c >= ' ' && c < 0x7F && len < RX_LINE_MAX - 1) {
+            line[len++] = c;                                  /* printable: store */
+            uart_putc(c);                                     /* and echo         */
+        }
+        /* anything else (control chars, or line full) is ignored */
+        xSemaphoreGive(xUartMutex);
     }
 }
 
@@ -66,8 +122,15 @@ int main(void)
 
     xQueue     = xQueueCreate(5, sizeof(unsigned int));
     xUartMutex = xSemaphoreCreateMutex();
-    configASSERT(xQueue && xUartMutex);
+    //configASSERT(xQueue && xUartMutex);
+    //uart_rx_int_enable();
 
+    xUartRxQueue = xQueueCreate(32,sizeof(char));
+    configASSERT(xQueue && xUartMutex && xUartRxQueue);
+
+    uart_rx_int_enable();   /* Step 2 - must come AFTER the queue exists */
+
+    xTaskCreate(vUartRxTask, "UartRx", configMINIMAL_STACK_SIZE * 2, NULL, 3, NULL);  /* Step 3 */
     xTaskCreate(vSenderTask,    "Sender",    configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);
     xTaskCreate(vReceiverTask,  "Receiver",  configMINIMAL_STACK_SIZE * 2, NULL, 2, NULL);
     xTaskCreate(vHeartbeatTask, "Heartbeat", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);
