@@ -10,6 +10,7 @@
 #include "queue.h"
 #include "semphr.h"
 #include "uart.h"
+#include "shell_cmd.h"
 
 #define RX_LINE_MAX 64
 static QueueHandle_t     xQueue;
@@ -95,11 +96,14 @@ static void vUartRxTask(void *pv)
         xSemaphoreTake(xUartMutex, portMAX_DELAY);
         if (c == '\r' || c == '\n') {                        /* Enter */
             line[len] = '\0';
-            uart_puts("\nYou typed (");
-            uart_putu(len);
-            uart_puts(" chars): ");
-            uart_puts(line);
-            uart_puts("\n> ");
+            //uart_puts("\nYou typed (");
+            //uart_putu(len);
+            //uart_puts(" chars): ");
+            //uart_puts(line);
+            //uart_puts("\n> ");
+            uart_puts("\n");
+            shell_execute(line);                              /* Stage 2 */
+            uart_puts("> ");
             len = 0;
         } else if (c == '\b' || c == 0x7F) {                 /* Backspace */
             if (len > 0) {

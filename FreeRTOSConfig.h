@@ -57,6 +57,7 @@
 #define INCLUDE_vTaskDelay                      1
 #define INCLUDE_xTaskGetSchedulerState          1
 #define INCLUDE_uxTaskGetStackHighWaterMark     1
+#define INCLUDE_xTaskGetHandle                  1   /* Stage 2: find a task by name */
 
 /* Stop here on a failed assert - inspect with GDB */
 #define configASSERT( x ) \

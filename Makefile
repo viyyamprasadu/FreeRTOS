@@ -15,7 +15,7 @@ SIZE     = arm-none-eabi-size
 GDB     ?= gdb-multiarch
 QEMU     = qemu-system-arm
 
-SRCS = main.c uart.c startup.c \
+SRCS = main.c uart.c startup.c shell_cmd.c\
        $(KERNEL)/tasks.c $(KERNEL)/queue.c $(KERNEL)/list.c \
        $(KERNEL)/timers.c $(KERNEL)/event_groups.c $(KERNEL)/stream_buffer.c \
        $(PORT)/port.c \
